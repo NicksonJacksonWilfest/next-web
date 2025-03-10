@@ -1,0 +1,44 @@
+name: ci
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  docker:
+    runs-on: ubuntu-20.04
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@v3
+      -
+        name: Set environment for branch
+        run: |
+          echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
+          echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" > env.txt
+      -
+        name: Upload environment artifact for docker tag
+        uses: actions/upload-artifact@v3
+        with:
+          name: environment
+          path: env.txt
+      -
+        name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      -
+        name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      -
+        name: Build and push
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          tags: distrodev/next-web:${{ env.RELEASE_VERSION }}
+          build-args: |
+            NEXT_PUBLIC_URL=${{ secrets.NEXT_PUBLIC_URL }}
